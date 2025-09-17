@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -14,7 +15,7 @@ namespace ItemInterpreter.UI.Configurador
         private readonly Dictionary<string, List<ItemDefinition>> _groupedItems;
         private readonly string _configPath = "tracked_items.json";
 
-        private List<TrackedItem> _selectedItems = new();
+        private readonly ObservableCollection<TrackedItem> _trackedItems = new();
 
         public ItemTrackerConfigGrouped(List<ItemDefinition> allItems)
         {
@@ -34,6 +35,7 @@ namespace ItemInterpreter.UI.Configurador
             TypeComboBox.SelectedIndex = 0;
 
             LoadPreviousSelections();
+            TrackedItemsGrid.ItemsSource = _trackedItems;
         }
 
         private void LoadPreviousSelections()
@@ -41,7 +43,16 @@ namespace ItemInterpreter.UI.Configurador
             if (File.Exists(_configPath))
             {
                 var json = File.ReadAllText(_configPath);
-                _selectedItems = JsonSerializer.Deserialize<List<TrackedItem>>(json) ?? new();
+                var items = JsonSerializer.Deserialize<List<TrackedItem>>(json) ?? new();
+
+                _trackedItems.Clear();
+
+                foreach (var tracked in items)
+                {
+                    var definition = _allItems.FirstOrDefault(d => d.Section == tracked.Section && d.Index == tracked.Index);
+                    tracked.ItemName = definition?.Name ?? tracked.ItemName;
+                    _trackedItems.Add(tracked);
+                }
             }
         }
 
@@ -54,7 +65,7 @@ namespace ItemInterpreter.UI.Configurador
 
                 foreach (var item in pair.Value)
                 {
-                    if (_selectedItems.Any(s => s.Section == item.Section && s.Index == item.Index))
+                    if (_trackedItems.Any(s => s.Section == item.Section && s.Index == item.Index))
                         ItemListBox.SelectedItems.Add(item);
                 }
             }
@@ -62,20 +73,7 @@ namespace ItemInterpreter.UI.Configurador
 
         private void Salvar_Click(object sender, RoutedEventArgs e)
         {
-            var selected = new List<TrackedItem>(_selectedItems);
-
-            if (ItemListBox.ItemsSource is List<ItemDefinition> currentList)
-            {
-                foreach (ItemDefinition item in ItemListBox.SelectedItems)
-                {
-                    if (!selected.Any(s => s.Section == item.Section && s.Index == item.Index))
-                    {
-                        selected.Add(new TrackedItem { Section = item.Section, Index = item.Index });
-                    }
-                }
-            }
-
-            var json = JsonSerializer.Serialize(selected);
+            var json = JsonSerializer.Serialize(_trackedItems);
             File.WriteAllText(_configPath, json);
 
             DialogResult = true;
@@ -86,6 +84,40 @@ namespace ItemInterpreter.UI.Configurador
         {
             DialogResult = false;
             Close();
+        }
+
+        private void AdicionarSelecionados_Click(object sender, RoutedEventArgs e)
+        {
+            if (ItemListBox.SelectedItems.Count == 0)
+                return;
+
+            foreach (ItemDefinition item in ItemListBox.SelectedItems)
+            {
+                if (_trackedItems.Any(t => t.Section == item.Section && t.Index == item.Index))
+                    continue;
+
+                var tracked = new TrackedItem
+                {
+                    Section = item.Section,
+                    Index = item.Index,
+                    ItemName = item.Name
+                };
+
+                _trackedItems.Add(tracked);
+            }
+        }
+
+        private void RemoverSelecionados_Click(object sender, RoutedEventArgs e)
+        {
+            if (TrackedItemsGrid.SelectedItems.Count == 0)
+                return;
+
+            var toRemove = TrackedItemsGrid.SelectedItems.Cast<TrackedItem>().ToList();
+
+            foreach (var tracked in toRemove)
+            {
+                _trackedItems.Remove(tracked);
+            }
         }
 
     }
