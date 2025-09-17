@@ -339,9 +339,13 @@ namespace ItemInterpreter.UI.Charts
                 }
             }*/
 
+            var seriesParaExibir = selecionados.Count > 0
+                ? selecionados
+                : _seriesPorItem.Keys.ToList();
+
             PlotModel.Series.Clear();
 
-            foreach (var nome in selecionados)
+            foreach (var nome in seriesParaExibir)
             {
                 if (_seriesPorItem.TryGetValue(nome, out var serieOriginal))
                 {
