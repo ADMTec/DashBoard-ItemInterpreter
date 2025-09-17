@@ -12,21 +12,11 @@ using Microsoft.Data.SqlClient;
 
 namespace ItemInterpreter.Logic
 {
-    public class ItemTrackingLog
-    {
-        public int Section { get; set; }
-        public int Index { get; set; }
-        public DateTime Date { get; set; }
-        public int Warehouse { get; set; }
-        public int Inventory { get; set; }
-        public string ItemName { get; set; } = string.Empty; // resolvendo CS8618
-    }
-
     public static class DailyItemTracker
     {
         private static readonly string ConnectionString = "Data Source=localhost;Initial Catalog=MuOnline;Integrated Security=True;TrustServerCertificate=True;";
         private static readonly string ConfigPath = "tracked_items.json";
-        private static readonly string HistoryPath = "tracked_history.json";
+        private static readonly string HistoryPath = "item_history.json";
         private static readonly string ZenHistoryPath = "zen_history.json";
 
         public static void RegistrarContagemDiaria()
@@ -36,8 +26,8 @@ namespace ItemInterpreter.Logic
 
             var trackedItems = JsonSerializer.Deserialize<List<TrackedItem>>(File.ReadAllText(ConfigPath)) ?? new();
             var historico = File.Exists(HistoryPath)
-                ? JsonSerializer.Deserialize<List<ItemTrackingLog>>(File.ReadAllText(HistoryPath)) ?? new()
-                : new List<ItemTrackingLog>();
+                ? JsonSerializer.Deserialize<List<ItemSnapshot>>(File.ReadAllText(HistoryPath)) ?? new()
+                : new List<ItemSnapshot>();
 
             var hoje = DateTime.Today;
 
@@ -45,20 +35,20 @@ namespace ItemInterpreter.Logic
             conn.Open();
 
             // 🔹 Gravar histórico de itens apenas se ainda não existir para o dia
-            if (!historico.Any(h => h.Date == hoje))
+            if (!historico.Any(h => h.Timestamp.Date == hoje))
             {
                 foreach (var item in trackedItems)
                 {
                     int warehouseCount = ContarItem(conn, "Warehouse", "Items", item.Section, item.Index);
                     int inventoryCount = ContarItem(conn, "Character", "Inventory", item.Section, item.Index);
 
-                    historico.Add(new ItemTrackingLog
+                    historico.Add(new ItemSnapshot
                     {
                         Section = item.Section,
                         Index = item.Index,
-                        Date = hoje,
-                        Warehouse = warehouseCount,
-                        Inventory = inventoryCount,
+                        Timestamp = hoje,
+                        WarehouseCount = warehouseCount,
+                        InventoryCount = inventoryCount,
                         ItemName = ObterNomeDoItem(item.Section, item.Index)
                     });
                 }
