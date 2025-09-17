@@ -71,9 +71,20 @@ namespace ItemInterpreter.Logic
 
         private long ObterZen(SqlConnection conn, string tabela)
         {
-            using var cmd = new SqlCommand($"SELECT CAST(SUM(CAST(Money AS BIGINT)) AS BIGINT) FROM {tabela}", conn);
+            string tableName = ResolverNomeTabela(tabela);
+            using var cmd = new SqlCommand($"SELECT SUM(CAST([Money] AS BIGINT)) FROM {tableName}", conn);
             var result = cmd.ExecuteScalar();
             return result != DBNull.Value ? Convert.ToInt64(result) : 0;
+        }
+
+        private static string ResolverNomeTabela(string tabela)
+        {
+            return tabela switch
+            {
+                "Warehouse" => "[dbo].[warehouse]",
+                "Character" => "[dbo].[Character]",
+                _ => throw new ArgumentException($"Tabela desconhecida: {tabela}", nameof(tabela))
+            };
         }
     }
 }

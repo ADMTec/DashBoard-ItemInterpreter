@@ -81,11 +81,14 @@ namespace ItemInterpreter.Logic
         private static int ContarItem(SqlConnection conn, string tabela, string campo, int section, int index)
         {
             int total = 0;
-            using var cmd = new SqlCommand($"SELECT {campo} FROM {tabela}", conn);
+            string tableName = ResolverNomeTabela(tabela);
+            string columnName = ResolverNomeColuna(campo);
+
+            using var cmd = new SqlCommand($"SELECT {columnName} AS DataBlob FROM {tableName}", conn);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                if (reader[campo] is byte[] blob && blob.Length % 32 == 0)
+                if (!reader.IsDBNull(0) && reader.GetValue(0) is byte[] blob && blob.Length % 32 == 0)
                 {
                     for (int i = 0; i < blob.Length; i += 32)
                     {
@@ -114,9 +117,30 @@ namespace ItemInterpreter.Logic
 
         private static long ObterZen(SqlConnection conn, string tabela)
         {
-            using var cmd = new SqlCommand($"SELECT SUM(CAST(Money AS BIGINT)) FROM {tabela}", conn);
+            string tableName = ResolverNomeTabela(tabela);
+            using var cmd = new SqlCommand($"SELECT SUM(CAST([Money] AS BIGINT)) FROM {tableName}", conn);
             var result = cmd.ExecuteScalar();
             return result != DBNull.Value ? Convert.ToInt64(result) : 0;
+        }
+
+        private static string ResolverNomeTabela(string tabela)
+        {
+            return tabela switch
+            {
+                "Warehouse" => "[dbo].[warehouse]",
+                "Character" => "[dbo].[Character]",
+                _ => throw new ArgumentException($"Tabela desconhecida: {tabela}", nameof(tabela))
+            };
+        }
+
+        private static string ResolverNomeColuna(string coluna)
+        {
+            return coluna switch
+            {
+                "Items" => "[Items]",
+                "Inventory" => "[Inventory]",
+                _ => throw new ArgumentException($"Coluna desconhecida: {coluna}", nameof(coluna))
+            };
         }
 
     }
