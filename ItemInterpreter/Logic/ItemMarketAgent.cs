@@ -37,23 +37,23 @@ namespace ItemInterpreter.Logic
             };
 
             var tracked = JsonSerializer.Deserialize<List<TrackedItem>>(File.ReadAllText("tracked_items.json")) ?? new();
-            var historico = new List<ItemTrackingLog>();
+            var historico = new List<ItemSnapshot>();
 
             foreach (var item in tracked)
             {
-                historico.Add(new ItemTrackingLog
+                historico.Add(new ItemSnapshot
                 {
-                    ItemName = $"ITEMGET({item.Section},{item.Index})",
                     Section = item.Section,
                     Index = item.Index,
-                    Date = DateTime.Now,
-                    Warehouse = warehouse.GetValueOrDefault((item.Section, item.Index)),
-                    Inventory = inventory.GetValueOrDefault((item.Section, item.Index)),
+                    ItemName = string.IsNullOrWhiteSpace(item.ItemName) ? $"ITEMGET({item.Section},{item.Index})" : item.ItemName,
+                    Timestamp = DateTime.Now,
+                    WarehouseCount = warehouse.GetValueOrDefault((item.Section, item.Index)),
+                    InventoryCount = inventory.GetValueOrDefault((item.Section, item.Index)),
                 });
             }
 
             Salvar("zen_history.json", dataZen);
-            Salvar("tracked_history.json", historico);
+            Salvar("item_history.json", historico);
         }
 
         private void Salvar<T>(string path, T entrada)
