@@ -1,0 +1,58 @@
+[
+  {
+    "Section": 5,
+    "Index": 0,
+    "Date": "2025-04-13T00:00:00-03:00",
+    "Warehouse": 0,
+    "Inventory": 4,
+    "ItemName": "Skull Staff"
+  },
+  {
+    "Section": 14,
+    "Index": 13,
+    "Date": "2025-04-13T00:00:00-03:00",
+    "Warehouse": 16,
+    "Inventory": 1,
+    "ItemName": "Jewel of Bless"
+  },
+  {
+    "Section": 5,
+    "Index": 0,
+    "Date": "2025-05-31T00:00:00-03:00",
+    "Warehouse": 0,
+    "Inventory": 4,
+    "ItemName": "Skull Staff"
+  },
+  {
+    "Section": 14,
+    "Index": 13,
+    "Date": "2025-05-31T00:00:00-03:00",
+    "Warehouse": 23,
+    "Inventory": 2,
+    "ItemName": "Jewel of Bless"
+  },
+  {
+    "Section": 5,
+    "Index": 0,
+    "Date": "2025-09-17T00:00:00-03:00",
+    "Warehouse": 0,
+    "Inventory": 5,
+    "ItemName": "Skull Staff"
+  },
+  {
+    "Section": 14,
+    "Index": 13,
+    "Date": "2025-09-17T00:00:00-03:00",
+    "Warehouse": 17,
+    "Inventory": 8,
+    "ItemName": "Jewel of Bless"
+  },
+  {
+    "Section": 2,
+    "Index": 0,
+    "Date": "2025-09-17T00:00:00-03:00",
+    "Warehouse": 0,
+    "Inventory": 0,
+    "ItemName": "Mace"
+  }
+]

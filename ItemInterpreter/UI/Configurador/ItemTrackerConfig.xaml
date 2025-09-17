@@ -1,0 +1,21 @@
+﻿<Window x:Class="ItemInterpreter.UI.Configurador.ItemTrackerConfig"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Configurar Itens Rastreáveis" Height="400" Width="500">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Selecione os itens que deseja rastrear:" FontWeight="Bold" Margin="0,0,0,10"/>
+
+        <ListBox x:Name="ItemListBox" Grid.Row="1" SelectionMode="Multiple" DisplayMemberPath="Name" />
+
+        <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Salvar" Width="80" Margin="0,0,10,0" Click="Salvar_Click"/>
+            <Button Content="Cancelar" Width="80" Click="Cancelar_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

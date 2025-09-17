@@ -1,0 +1,27 @@
+﻿<Window x:Class="ItemInterpreter.UI.Charts.ZenChart"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        Title="Gráfico de Zen" Height="600" Width="900"
+        Background="#1E1E1E" Foreground="White"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Título + Filtro -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left">
+            <TextBlock Text="💰 Origem do Zen:" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+            <ComboBox x:Name="OrigemComboBox" SelectionChanged="OrigemComboBox_SelectionChanged"
+                      Width="200" Height="30" Background="#2D2D30" Foreground="White"/>
+        </StackPanel>
+
+        <!-- Gráfico -->
+        <Border Grid.Row="1" Margin="0 20 0 0" BorderBrush="#444" BorderThickness="1" CornerRadius="10" Background="#2A2A2A">
+            <oxy:PlotView x:Name="ZenPlot" />
+        </Border>
+    </Grid>
+</Window>
