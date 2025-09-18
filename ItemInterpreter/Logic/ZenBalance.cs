@@ -21,10 +21,10 @@ namespace ItemInterpreter.Logic
                 conn.Open();
 
                 var cmd = new SqlCommand(@"
-            SELECT CONVERT(date, ConnectTM) as Dia, SUM(Money) as TotalZen
-            FROM MEMB_INFO MI
-            JOIN Character C ON C.AccountID = MI.memb___id
-            GROUP BY CONVERT(date, ConnectTM)
+            SELECT CONVERT(date, MI.ConnectTM) as Dia, SUM(CAST(C.Money AS BIGINT)) as TotalZen
+            FROM [dbo].[MEMB_INFO] MI
+            JOIN [dbo].[Character] C ON C.AccountID = MI.memb___id
+            GROUP BY CONVERT(date, MI.ConnectTM)
             ORDER BY Dia ASC
         ", conn);
 

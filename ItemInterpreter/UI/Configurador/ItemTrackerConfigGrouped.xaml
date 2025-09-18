@@ -17,39 +17,69 @@
         <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
             <TextBlock Text="🧩 Seção de Itens: " FontSize="16" VerticalAlignment="Center"/>
             <ComboBox x:Name="TypeComboBox"
-          SelectionChanged="TypeComboBox_SelectionChanged"
-          Width="300" Height="30"
-          Background="#2D2D30" Foreground="White" Margin="10 0 0 0"
-          DisplayMemberPath="Key"/>
-
+                      SelectionChanged="TypeComboBox_SelectionChanged"
+                      Width="320" Height="30"
+                      Background="#2D2D30" Foreground="White" Margin="10 0 0 0"
+                      DisplayMemberPath="Key"/>
         </StackPanel>
 
-        <!-- Lista de Itens -->
-        <ListBox x:Name="ItemListBox" Grid.Row="1" SelectionMode="Extended"
-         Background="#2D2D30" Foreground="White" BorderThickness="0"
-         ScrollViewer.VerticalScrollBarVisibility="Auto">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal" Margin="5">
-                        <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
-                        <TextBlock Text="  (Idx: " Foreground="Gray"/>
-                        <TextBlock Text="{Binding Index}" Foreground="Gray"/>
-                        <TextBlock Text=", Sec: " Foreground="Gray"/>
-                        <TextBlock Text="{Binding Section}" Foreground="Gray"/>
-                        <TextBlock Text=")" Foreground="Gray"/>
-                    </StackPanel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid Grid.Row="1" ColumnDefinitions="2*,Auto,3*" ColumnSpacing="15">
+            <!-- Lista de Itens -->
+            <Border Background="#2D2D30" CornerRadius="8" Padding="10">
+                <DockPanel>
+                    <TextBlock Text="Itens disponíveis" FontWeight="Bold" FontSize="14" DockPanel.Dock="Top" Margin="0 0 0 8"/>
+                    <ListBox x:Name="ItemListBox" SelectionMode="Extended"
+                             Background="Transparent" Foreground="White" BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" Margin="5 2">
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding Path=Index, StringFormat=Idx: {0}}" Foreground="#BBBBBB" FontSize="12"/>
+                                    <TextBlock Text="{Binding Path=Section, StringFormat=Sec: {0}}" Foreground="#BBBBBB" FontSize="12"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
 
+            <!-- Botões de ação -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="10">
+                <Button Content="➕ Adicionar" Width="120" Click="AdicionarSelecionados_Click"/>
+                <Button Content="➖ Remover" Width="120" Click="RemoverSelecionados_Click"/>
+            </StackPanel>
 
+            <!-- Itens rastreados com metas -->
+            <Border Grid.Column="2" Background="#2D2D30" CornerRadius="8" Padding="10">
+                <DockPanel>
+                    <TextBlock Text="Itens rastreados" FontWeight="Bold" FontSize="14" DockPanel.Dock="Top" Margin="0 0 0 8"/>
+                    <DataGrid x:Name="TrackedItemsGrid"
+                              AutoGenerateColumns="False"
+                              Background="Transparent" Foreground="White"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              IsReadOnly="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nome" Binding="{Binding ItemName}" IsReadOnly="True" Width="*"/>
+                            <DataGridTextColumn Header="Sec" Binding="{Binding Section}" IsReadOnly="True" Width="60"/>
+                            <DataGridTextColumn Header="Idx" Binding="{Binding Index}" IsReadOnly="True" Width="60"/>
+                            <DataGridTextColumn Header="Meta Min" Binding="{Binding MinimumTarget}" Width="90"/>
+                            <DataGridTextColumn Header="Meta Max" Binding="{Binding MaximumTarget}" Width="90"/>
+                            <DataGridTextColumn Header="Preço Compra" Binding="{Binding PurchasePrice}" Width="110"/>
+                            <DataGridTextColumn Header="Preço Venda" Binding="{Binding SalePrice}" Width="110"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+        </Grid>
 
         <!-- Botões -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 15 0 0">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 15 0 0" Spacing="10">
             <Button Content="💾 Salvar" Click="Salvar_Click"
-                    Width="120" Height="35" Background="#4CAF50" Foreground="White"/>
+                    Width="140" Height="35" Background="#4CAF50" Foreground="White"/>
             <Button Content="❌ Cancelar" Click="Cancelar_Click"
-                    Width="120" Height="35" Background="#D32F2F" Foreground="White"/>
+                    Width="140" Height="35" Background="#D32F2F" Foreground="White"/>
         </StackPanel>
     </Grid>
 </Window>
