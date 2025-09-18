@@ -124,7 +124,7 @@ namespace ItemInterpreter.UI.Dashboard
 
             var displayList = new List<TrackedItemDisplay>();
             var newAlerts = new List<string>();
-
+            
             decimal totalCost = 0m;
             decimal totalPotentialRevenue = 0m;
             int totalStock = 0;
