@@ -124,7 +124,7 @@ namespace ItemInterpreter.UI.Dashboard
 
             var displayList = new List<TrackedItemDisplay>();
             var newAlerts = new List<string>();
-
+            
             decimal totalCost = 0m;
             decimal totalPotentialRevenue = 0m;
             int totalStock = 0;
@@ -254,6 +254,12 @@ namespace ItemInterpreter.UI.Dashboard
         private void AbrirGraficoItens_Click(object sender, RoutedEventArgs e)
         {
             new ItemCountChart().Show();
+        }
+
+        private void AbrirGraficoPersonalShop_Click(object sender, RoutedEventArgs e)
+        {
+            LoadTrackedItems();
+            new PersonalShopPriceChart(_trackedItems, _connectionString).Show();
         }
 
         private void ExportarCsv_Click(object sender, RoutedEventArgs e)
