@@ -52,5 +52,62 @@ namespace ItemInterpreter.Logic
             var json = JsonSerializer.Serialize(trimmed, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_historyPath, json);
         }
+
+        public Dictionary<(int Section, int Index), List<DailyItemTotal>> GetDailyTotals(IEnumerable<(int Section, int Index)> items, int days = 60)
+        {
+            var history = ReadHistory();
+            var filter = items?.ToHashSet() ?? new HashSet<(int Section, int Index)>();
+            var hasFilter = filter.Count > 0;
+            var cutoff = DateTime.Now.Date.AddDays(-Math.Abs(days));
+
+            return history
+                .Where(snapshot => snapshot.Timestamp.Date >= cutoff)
+                .Where(snapshot => !hasFilter || filter.Contains((snapshot.Section, snapshot.Index)))
+                .GroupBy(snapshot => (snapshot.Section, snapshot.Index))
+                .ToDictionary(group => group.Key, group => group
+                    .GroupBy(snapshot => snapshot.Timestamp.Date)
+                    .Select(dayGroup => dayGroup
+                        .OrderByDescending(s => s.Timestamp)
+                        .First())
+                    .OrderBy(s => s.Timestamp)
+                    .Select(s => new DailyItemTotal
+                    {
+                        Date = s.Timestamp.Date,
+                        Section = s.Section,
+                        Index = s.Index,
+                        TotalCount = s.TotalCount
+                    })
+                    .ToList());
+        }
+
+        public double? CalculateAverageDailyChange(IEnumerable<DailyItemTotal> totals, int window = 7)
+        {
+            if (totals == null)
+            {
+                return null;
+            }
+
+            var ordered = totals
+                .OrderByDescending(total => total.Date)
+                .Take(Math.Max(window + 1, 2))
+                .OrderBy(total => total.Date)
+                .ToList();
+
+            if (ordered.Count < 2)
+            {
+                return null;
+            }
+
+            var deltas = new List<double>();
+            for (int i = 1; i < ordered.Count; i++)
+            {
+                var current = ordered[i].TotalCount;
+                var previous = ordered[i - 1].TotalCount;
+                deltas.Add(current - previous);
+            }
+
+            return deltas.Count > 0 ? deltas.Average() : null;
+        }
+
     }
 }

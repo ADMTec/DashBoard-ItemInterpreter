@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -36,9 +37,20 @@ namespace ItemInterpreter.UI.Dashboard
             public Brush StatusBrush { get; set; } = Brushes.Gray;
             public string StatusMessage { get; set; } = string.Empty;
 
+            public double? AverageDailyChange { get; set; }
+            public double? DaysToMinimum { get; set; }
+            public double? DaysToMaximum { get; set; }
+            public string ProjectionMessage { get; set; } = "Histórico insuficiente";
+            public Brush ProjectionBrush { get; set; } = Brushes.Gray;
+
+
             public int TotalCount => InventoryCount + WarehouseCount;
             public string MinimumTargetDisplay => MinimumTarget?.ToString() ?? "—";
             public string MaximumTargetDisplay => MaximumTarget?.ToString() ?? "—";
+
+            public string AverageDailyChangeDisplay => AverageDailyChange.HasValue
+                ? $"{AverageDailyChange.Value:+0.##;-0.##;0}/dia"
+                : "—";
 
             public string MarginDisplay
             {
@@ -63,6 +75,27 @@ namespace ItemInterpreter.UI.Dashboard
             }
         }
 
+        private class RecentSaleDisplay
+        {
+            public string DateDisplay { get; set; } = string.Empty;
+            public string ItemName { get; set; } = string.Empty;
+            public string PriceDisplay { get; set; } = string.Empty;
+            public Brush PriceBrush { get; set; } = Brushes.White;
+            public string TradeDisplay { get; set; } = string.Empty;
+            public string Tooltip { get; set; } = string.Empty;
+        }
+
+        private class HotItemDisplay
+        {
+            public string ItemName { get; set; } = string.Empty;
+            public int TotalSales { get; set; }
+            public string AveragePriceDisplay { get; set; } = string.Empty;
+            public string ChangeDisplay { get; set; } = string.Empty;
+            public Brush ChangeBrush { get; set; } = Brushes.White;
+            public string OutlierDisplay { get; set; } = string.Empty;
+            public string Tooltip { get; set; } = string.Empty;
+        }
+
         public enum InventoryStatus
         {
             Healthy,
@@ -77,19 +110,36 @@ namespace ItemInterpreter.UI.Dashboard
         private readonly DashboardAuditLogger _auditLogger = new();
         private readonly DispatcherTimer _autoRefreshTimer = new();
         private readonly ObservableCollection<string> _alerts = new();
+        private readonly ObservableCollection<RecentSaleDisplay> _recentSales = new();
+        private readonly ObservableCollection<HotItemDisplay> _topVolume = new();
+        private readonly ObservableCollection<HotItemDisplay> _priceVariations = new();
+
         private readonly HashSet<string> _alertRegistry = new();
 
         private List<ItemDefinition> _itemDatabase = ItemXmlLoader.Load("IGC_ItemList.xml");
         private List<TrackedItem> _trackedItems = new();
+        private readonly PersonalShopPriceHistoryService _personalShopService;
+        private readonly NotificationSettingsService _notificationSettingsService = new();
+        private NotificationSettings _notificationSettings;
+        private INotificationDispatcher? _notificationDispatcher;
+        private readonly string _notificationLogPath = "notification_failures.log";
 
         public DashboardWindow()
         {
             InitializeComponent();
             AlertList.ItemsSource = _alerts;
+            RecentSalesListView.ItemsSource = _recentSales;
+            TopVolumeListView.ItemsSource = _topVolume;
+            PriceVariationListView.ItemsSource = _priceVariations;
+            
             AutoRefreshInterval.SelectedIndex = 2; // 5 minutos
             AutoRefreshCheckBox.IsChecked = true;
 
             _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
+
+            _personalShopService = new PersonalShopPriceHistoryService(_connectionString, itemDefinitions: _itemDatabase);
+            _notificationSettings = _notificationSettingsService.Load();
+            UpdateNotificationDispatcher();
 
             LoadTrackedItems();
             RefreshData();
@@ -124,7 +174,9 @@ namespace ItemInterpreter.UI.Dashboard
 
             var displayList = new List<TrackedItemDisplay>();
             var newAlerts = new List<string>();
-            
+            var trackedKeys = new List<(int Section, int Index)>();
+
+
             decimal totalCost = 0m;
             decimal totalPotentialRevenue = 0m;
             int totalStock = 0;
@@ -142,6 +194,7 @@ namespace ItemInterpreter.UI.Dashboard
                 Brush statusBrush = new SolidColorBrush(Color.FromRgb(102, 187, 106));
 
                 if (pair.MinimumTarget.HasValue && total < pair.MinimumTarget.Value)
+
                 {
                     status = InventoryStatus.BelowMinimum;
                     statusMessage = "Abaixo da meta";
@@ -149,6 +202,7 @@ namespace ItemInterpreter.UI.Dashboard
                 }
                 else if (pair.MaximumTarget.HasValue && total > pair.MaximumTarget.Value)
                 {
+
                     status = InventoryStatus.AboveMaximum;
                     statusMessage = "Acima do limite";
                     statusBrush = new SolidColorBrush(Color.FromRgb(255, 183, 77));
@@ -171,6 +225,7 @@ namespace ItemInterpreter.UI.Dashboard
                 };
 
                 displayList.Add(display);
+                trackedKeys.Add((pair.Section, pair.Index));
 
                 if (pair.PurchasePrice.HasValue)
                 {
@@ -190,6 +245,10 @@ namespace ItemInterpreter.UI.Dashboard
                     newAlerts.Add(alertMessage);
                 }
             }
+
+            UpdateItemProjections(displayList, trackedKeys);
+            UpdateRecentSales(trackedKeys);
+            UpdateHotItemRankings(trackedKeys);
 
             ItemListView.ItemsSource = displayList;
 
@@ -346,7 +405,9 @@ namespace ItemInterpreter.UI.Dashboard
             {
                 if (_alertRegistry.Add(alert))
                 {
-                    _alerts.Add($"[{DateTime.Now:HH:mm}] {alert}");
+                    var formatted = $"[{DateTime.Now:HH:mm}] {alert}";
+                    _alerts.Add(formatted);
+                    DispatchAlertAsync(formatted);
                 }
             }
         }
@@ -410,6 +471,309 @@ namespace ItemInterpreter.UI.Dashboard
         {
             _alerts.Clear();
             _alertRegistry.Clear();
+        }
+
+        private void UpdateItemProjections(List<TrackedItemDisplay> displays, IEnumerable<(int Section, int Index)> trackedKeys)
+        {
+            if (displays.Count == 0)
+            {
+                return;
+            }
+
+            var history = _historyService.GetDailyTotals(trackedKeys, 60);
+
+            foreach (var display in displays)
+            {
+                if (!history.TryGetValue((display.Section, display.Index), out var totals) || totals.Count < 2)
+                {
+                    display.AverageDailyChange = null;
+                    display.DaysToMinimum = null;
+                    display.DaysToMaximum = null;
+                    display.ProjectionMessage = "Histórico insuficiente";
+                    display.ProjectionBrush = Brushes.Gray;
+                    continue;
+                }
+
+                var averageChange = _historyService.CalculateAverageDailyChange(totals, 7);
+                display.AverageDailyChange = averageChange;
+
+                var (message, brush, daysToMin, daysToMax) = CalculateProjection(display, averageChange);
+                display.ProjectionMessage = message;
+                display.ProjectionBrush = brush;
+                display.DaysToMinimum = daysToMin;
+                display.DaysToMaximum = daysToMax;
+            }
+        }
+
+        private (string Message, Brush Brush, double? DaysToMinimum, double? DaysToMaximum) CalculateProjection(TrackedItemDisplay display, double? averageChange)
+        {
+            var neutralBrush = new SolidColorBrush(Color.FromRgb(158, 158, 158));
+            if (!averageChange.HasValue || Math.Abs(averageChange.Value) < 0.01)
+            {
+                return ("Tendência estável", neutralBrush, null, null);
+            }
+
+            if (display.MinimumTarget.HasValue && display.TotalCount <= display.MinimumTarget.Value)
+            {
+                return ("⚠️ Abaixo da meta mínima", new SolidColorBrush(Color.FromRgb(244, 67, 54)), 0, null);
+            }
+
+            if (display.MaximumTarget.HasValue && display.TotalCount >= display.MaximumTarget.Value)
+            {
+                return ("⬆️ Acima da meta máxima", new SolidColorBrush(Color.FromRgb(255, 183, 77)), null, 0);
+            }
+
+            if (averageChange.Value < 0)
+            {
+                if (display.MinimumTarget.HasValue)
+                {
+                    var distance = display.TotalCount - display.MinimumTarget.Value;
+                    if (distance > 0)
+                    {
+                        var days = distance / Math.Abs(averageChange.Value);
+                        var brush = new SolidColorBrush(Color.FromRgb(244, 67, 54));
+                        var message = days <= 1
+                            ? "⚠️ Ruptura iminente"
+                            : $"⚠️ {Math.Ceiling(days)}d até meta mínima";
+                        return (message, brush, days, null);
+                    }
+                }
+
+                return ("Consumo em queda", new SolidColorBrush(Color.FromRgb(229, 115, 115)), null, null);
+            }
+
+            if (averageChange.Value > 0)
+            {
+                if (display.MaximumTarget.HasValue)
+                {
+                    var distance = display.MaximumTarget.Value - display.TotalCount;
+                    if (distance > 0)
+                    {
+                        var days = distance / averageChange.Value;
+                        var brush = new SolidColorBrush(Color.FromRgb(255, 183, 77));
+                        var message = days <= 1
+                            ? "⬆️ Ultrapassa meta amanhã"
+                            : $"⬆️ {Math.Ceiling(days)}d até meta máxima";
+                        return (message, brush, null, days);
+                    }
+                }
+
+                return ("Estoque crescendo", new SolidColorBrush(Color.FromRgb(129, 199, 132)), null, null);
+            }
+
+            return ("Tendência estável", neutralBrush, null, null);
+        }
+
+        private void UpdateRecentSales(List<(int Section, int Index)> trackedKeys)
+        {
+            _recentSales.Clear();
+
+            List<PersonalShopSaleEntry> sales;
+            try
+            {
+                sales = _personalShopService.GetRecentSales(20, trackedKeys);
+            }
+            catch
+            {
+                return;
+            }
+
+            var culture = CultureInfo.GetCultureInfo("pt-BR");
+
+            foreach (var sale in sales)
+            {
+                var price = sale.AlternativePrice.HasValue && sale.AlternativePrice.Value > 0
+                    ? sale.AlternativePrice.Value
+                    : sale.PriceZen;
+
+                double? diffPercent = null;
+                if (sale.AveragePriceWindow.HasValue && sale.AveragePriceWindow.Value > 0)
+                {
+                    diffPercent = (price - sale.AveragePriceWindow.Value) / sale.AveragePriceWindow.Value * 100d;
+                }
+
+                var brush = GetPriceBrush(diffPercent);
+                var tooltip = sale.AveragePriceWindow.HasValue
+                    ? $"Média 30d: {sale.AveragePriceWindow.Value.ToString("N0", culture)} | Δ {(diffPercent ?? 0):F1}%"
+                    : "Sem histórico recente";
+
+                _recentSales.Add(new RecentSaleDisplay
+                {
+                    DateDisplay = sale.Date.ToString("dd/MM HH:mm"),
+                    ItemName = sale.ItemName,
+                    PriceDisplay = price.ToString("N0", culture),
+                    PriceBrush = brush,
+                    TradeDisplay = string.IsNullOrWhiteSpace(sale.Buyer) && string.IsNullOrWhiteSpace(sale.Seller)
+                        ? "—"
+                        : $"{sale.Seller} → {sale.Buyer}",
+                    Tooltip = tooltip
+                });
+            }
+        }
+
+        private void UpdateHotItemRankings(List<(int Section, int Index)> trackedKeys)
+        {
+            _topVolume.Clear();
+            _priceVariations.Clear();
+
+            List<HotItemSummary> summaries;
+            try
+            {
+                summaries = _personalShopService.GetHotItemSummaries(TimeSpan.FromDays(7), 10, TimeSpan.FromDays(7), trackedKeys);
+            }
+            catch
+            {
+                return;
+            }
+
+            var culture = CultureInfo.GetCultureInfo("pt-BR");
+
+            foreach (var summary in summaries.OrderByDescending(s => s.TotalSales).Take(5))
+            {
+                var display = BuildHotItemDisplay(summary, culture);
+                _topVolume.Add(display);
+            }
+
+            foreach (var summary in summaries
+                .OrderByDescending(s => Math.Abs(s.PriceChangePercent))
+                .ThenByDescending(s => s.TotalSales)
+                .Take(5))
+            {
+                var display = BuildHotItemDisplay(summary, culture);
+                _priceVariations.Add(display);
+            }
+        }
+
+        private HotItemDisplay BuildHotItemDisplay(HotItemSummary summary, CultureInfo culture)
+        {
+            var changeBrush = summary.PriceChangePercent switch
+            {
+                >= 15 => new SolidColorBrush(Color.FromRgb(244, 67, 54)),
+                >= 5 => new SolidColorBrush(Color.FromRgb(255, 183, 77)),
+                <= -15 => new SolidColorBrush(Color.FromRgb(102, 187, 106)),
+                <= -5 => new SolidColorBrush(Color.FromRgb(129, 199, 132)),
+                _ => Brushes.White
+            };
+
+            var tooltip = summary.PreviousAveragePrice.HasValue
+                ? $"Média atual: {summary.AveragePrice.ToString("N0", culture)} | Média anterior: {summary.PreviousAveragePrice.Value.ToString("N0", culture)}"
+                : $"Média atual: {summary.AveragePrice.ToString("N0", culture)}";
+
+            if (summary.PriceStandardDeviation.HasValue)
+            {
+                tooltip += $" | Desvio padrão: {summary.PriceStandardDeviation.Value:F0}";
+            }
+
+            return new HotItemDisplay
+            {
+                ItemName = summary.ItemName,
+                TotalSales = summary.TotalSales,
+                AveragePriceDisplay = summary.AveragePrice.ToString("N0", culture),
+                ChangeDisplay = summary.PriceChangePercent == 0
+                    ? "0%"
+                    : $"{summary.PriceChangePercent:+0.0;-0.0}%",
+                ChangeBrush = changeBrush,
+                OutlierDisplay = summary.IsOutlier ? "Sim" : "Não",
+                Tooltip = tooltip
+            };
+        }
+
+        private Brush GetPriceBrush(double? diffPercent)
+        {
+            if (!diffPercent.HasValue)
+            {
+                return Brushes.White;
+            }
+
+            if (diffPercent.Value >= 15)
+            {
+                return new SolidColorBrush(Color.FromRgb(244, 67, 54));
+            }
+
+            if (diffPercent.Value >= 5)
+            {
+                return new SolidColorBrush(Color.FromRgb(255, 183, 77));
+            }
+
+            if (diffPercent.Value <= -15)
+            {
+                return new SolidColorBrush(Color.FromRgb(102, 187, 106));
+            }
+
+            if (diffPercent.Value <= -5)
+            {
+                return new SolidColorBrush(Color.FromRgb(129, 199, 132));
+            }
+
+            return Brushes.White;
+        }
+
+        private void DispatchAlertAsync(string message)
+        {
+            if (_notificationDispatcher == null)
+            {
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _notificationDispatcher.DispatchAsync(message).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    LogNotificationFailure(ex, message);
+                }
+            });
+        }
+
+        private void LogNotificationFailure(Exception exception, string message)
+        {
+            try
+            {
+                var line = $"[{DateTime.Now:dd/MM/yyyy HH:mm:ss}] Falha ao enviar alerta: {message} | Erro: {exception.Message}{Environment.NewLine}";
+                File.AppendAllText(_notificationLogPath, line);
+            }
+            catch
+            {
+                // Evita loop de erros
+            }
+        }
+
+        private void ConfigurarNotificacoes_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new NotificationSettingsWindow(_notificationSettingsService)
+            {
+                Owner = this
+            };
+
+            var result = window.ShowDialog();
+            if (result == true)
+            {
+                _notificationSettings = window.GetUpdatedSettings();
+                UpdateNotificationDispatcher();
+            }
+        }
+
+        private void UpdateNotificationDispatcher()
+        {
+            (_notificationDispatcher as IDisposable)?.Dispose();
+
+            if (_notificationSettings.WebhookEnabled && !string.IsNullOrWhiteSpace(_notificationSettings.WebhookUrl))
+            {
+                _notificationDispatcher = new WebhookNotificationDispatcher(_notificationSettings.WebhookUrl!);
+            }
+            else
+            {
+                _notificationDispatcher = null;
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            (_notificationDispatcher as IDisposable)?.Dispose();
         }
     }
 }

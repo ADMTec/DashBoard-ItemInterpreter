@@ -12,7 +12,9 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Vertical" Margin="0 0 0 10">
+
+        <StackPanel Grid.Row="0" Orientation="Vertical" Margin="0 0 0 10" Spacing="10">
+
             <TextBlock Text="📊 Painel de Controle do Mercado" FontSize="24" FontWeight="Bold"/>
             <TextBlock x:Name="LastUpdatedText" FontSize="12" Foreground="#AAAAAA" Margin="0 4 0 12"/>
 
@@ -42,6 +44,84 @@
                 </StackPanel>
             </Border>
             </UniformGrid>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Background="#2D2D30" CornerRadius="12" Padding="10" Margin="0 0 8 0">
+                    <StackPanel>
+                        <TextBlock Text="🔥 Itens com maior volume" FontSize="16" FontWeight="Bold"/>
+                        <ListView x:Name="TopVolumeListView" Height="130" Background="Transparent" BorderThickness="0" Margin="0 8 0 0">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="ToolTip" Value="{Binding Tooltip}"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Item" Width="170" DisplayMemberBinding="{Binding ItemName}"/>
+                                    <GridViewColumn Header="Vendas" Width="70" DisplayMemberBinding="{Binding TotalSales}"/>
+                                    <GridViewColumn Header="Preço médio" Width="110">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding AveragePriceDisplay}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Δ %" Width="70">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding ChangeDisplay}" Foreground="{Binding ChangeBrush}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Background="#2D2D30" CornerRadius="12" Padding="10" Margin="8 0 0 0">
+                    <StackPanel>
+                        <TextBlock Text="📈 Maior variação de preço" FontSize="16" FontWeight="Bold"/>
+                        <ListView x:Name="PriceVariationListView" Height="130" Background="Transparent" BorderThickness="0" Margin="0 8 0 0">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="ToolTip" Value="{Binding Tooltip}"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Item" Width="170" DisplayMemberBinding="{Binding ItemName}"/>
+                                    <GridViewColumn Header="Preço médio" Width="110">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding AveragePriceDisplay}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Δ %" Width="70">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding ChangeDisplay}" Foreground="{Binding ChangeBrush}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Outlier" Width="60">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding OutlierDisplay}" Foreground="{Binding ChangeBrush}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0 0 0 10" ColumnDefinitions="3*,2*" ColumnSpacing="15">
@@ -91,6 +171,16 @@
                                             <TextBlock Text="{Binding PotentialRevenueDisplay}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
                                         </StackPanel>
                                     </UniformGrid>
+                                    <UniformGrid Rows="1" Columns="2" Margin="0 6 0 0">
+                                        <StackPanel>
+                                            <TextBlock Text="Consumo médio" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding AverageDailyChangeDisplay}" FontSize="14" Foreground="White"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Projeção" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding ProjectionMessage}" FontSize="14" FontWeight="SemiBold" Foreground="{Binding ProjectionBrush}"/>
+                                        </StackPanel>
+                                    </UniformGrid>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -101,11 +191,39 @@
             <StackPanel Grid.Column="1" Spacing="10">
                 <Border Background="#2D2D30" CornerRadius="12" Padding="10">
                     <StackPanel>
+                        <TextBlock Text="🛒 Vendas recentes" FontSize="16" FontWeight="Bold"/>
+                        <ListView x:Name="RecentSalesListView" Height="180" Margin="0 8 0 0" Background="Transparent" BorderThickness="0">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="ToolTip" Value="{Binding Tooltip}"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Data" Width="110" DisplayMemberBinding="{Binding DateDisplay}"/>
+                                    <GridViewColumn Header="Item" Width="160" DisplayMemberBinding="{Binding ItemName}"/>
+                                    <GridViewColumn Header="Preço" Width="90">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding PriceDisplay}" Foreground="{Binding PriceBrush}"/>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Operação" Width="140" DisplayMemberBinding="{Binding TradeDisplay}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#2D2D30" CornerRadius="12" Padding="10">
+                    <StackPanel>
+
                         <DockPanel>
                             <TextBlock Text="⚠️ Alertas" FontSize="16" FontWeight="Bold"/>
                             <Button Content="Limpar" DockPanel.Dock="Right" Click="LimparAlertas_Click" Width="80" Height="26" Margin="5 0 0 0"/>
                         </DockPanel>
-                        <ListBox x:Name="AlertList" Background="Transparent" BorderThickness="0" Margin="0 10 0 0" Height="200"/>
+                        <ListBox x:Name="AlertList" Background="Transparent" BorderThickness="0" Margin="0 10 0 0" Height="150"/>
                     </StackPanel>
                 </Border>
 
@@ -121,6 +239,14 @@
                                 <ComboBoxItem Content="10 minutos" Tag="00:10:00"/>
                             </ComboBox>
                         </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#2D2D30" CornerRadius="12" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="Notificações externas" FontSize="16" FontWeight="Bold" Margin="0 0 0 6"/>
+                        <TextBlock Text="Envie alertas automaticamente para um webhook." FontSize="12" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                        <Button Content="Configurar webhook" Click="ConfigurarNotificacoes_Click" Margin="0 10 0 0"/>
                     </StackPanel>
                 </Border>
 
