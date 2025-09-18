@@ -12,29 +12,134 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="🎯 Itens Rastreando" FontSize="22" FontWeight="Bold" Margin="0 0 0 10"/>
+        <StackPanel Grid.Row="0" Orientation="Vertical" Margin="0 0 0 10">
+            <TextBlock Text="📊 Painel de Controle do Mercado" FontSize="24" FontWeight="Bold"/>
+            <TextBlock x:Name="LastUpdatedText" FontSize="12" Foreground="#AAAAAA" Margin="0 4 0 12"/>
 
-        <ListView x:Name="ItemListView" Grid.Row="1" Margin="0 10 0 10" Background="#2D2D30" BorderThickness="0">
-            <ListView.ItemTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="#444" BorderThickness="1" CornerRadius="10" Padding="10" Margin="5" Background="#2A2A2A">
-                        <StackPanel Orientation="Vertical">
-                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="16" />
-                            <TextBlock Text="📦 Inventário: " FontSize="14" Foreground="#AAA" />
-                            <TextBlock Text="{Binding InventoryCount}" FontSize="14" />
-                            <TextBlock Text="📦 Armazém: " FontSize="14" Foreground="#AAA" />
-                            <TextBlock Text="{Binding WarehouseCount}" FontSize="14" />
+            <UniformGrid Rows="1" Columns="4" HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="90">
+            <Border Background="#2D2D30" CornerRadius="12" Margin="5" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Itens rastreados" FontSize="13" Foreground="#AAAAAA"/>
+                    <TextBlock x:Name="TotalTrackedText" FontSize="22" FontWeight="Bold"/>
+                </StackPanel>
+            </Border>
+            <Border Background="#2D2D30" CornerRadius="12" Margin="5" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Estoque total" FontSize="13" Foreground="#AAAAAA"/>
+                    <TextBlock x:Name="TotalInventoryText" FontSize="22" FontWeight="Bold"/>
+                </StackPanel>
+            </Border>
+            <Border Background="#2D2D30" CornerRadius="12" Margin="5" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Valor imobilizado" FontSize="13" Foreground="#AAAAAA"/>
+                    <TextBlock x:Name="TotalValueText" FontSize="22" FontWeight="Bold"/>
+                </StackPanel>
+            </Border>
+            <Border Background="#2D2D30" CornerRadius="12" Margin="5" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Zen em circulação" FontSize="13" Foreground="#AAAAAA"/>
+                    <TextBlock x:Name="TotalZenText" FontSize="22" FontWeight="Bold"/>
+                </StackPanel>
+            </Border>
+            </UniformGrid>
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0 0 0 10" ColumnDefinitions="3*,2*" ColumnSpacing="15">
+            <Border Background="#2D2D30" CornerRadius="12" Padding="10">
+                <ListView x:Name="ItemListView" Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="8" Padding="10" Margin="0 6" Background="#2A2A2A" BorderBrush="{Binding StatusBrush}" BorderThickness="2">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="16" Foreground="White"/>
+                                        <TextBlock Text="{Binding StatusMessage}" DockPanel.Dock="Right" FontSize="12" FontWeight="Bold" Foreground="{Binding StatusBrush}"/>
+                                    </DockPanel>
+                                    <UniformGrid Rows="2" Columns="3" Margin="0 6 0 0">
+                                        <StackPanel>
+                                            <TextBlock Text="Inventário" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding InventoryCount}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Armazém" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding WarehouseCount}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Total" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding TotalCount}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Meta Min" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding MinimumTargetDisplay}" FontSize="14" Foreground="White"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Meta Max" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding MaximumTargetDisplay}" FontSize="14" Foreground="White"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Margem" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding MarginDisplay}" FontSize="14" Foreground="White"/>
+                                        </StackPanel>
+                                    </UniformGrid>
+                                    <UniformGrid Rows="1" Columns="2" Margin="0 6 0 0">
+                                        <StackPanel>
+                                            <TextBlock Text="Custo total" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding TotalCostDisplay}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Receita potencial" FontSize="12" Foreground="#CCCCCC"/>
+                                            <TextBlock Text="{Binding PotentialRevenueDisplay}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+
+            <StackPanel Grid.Column="1" Spacing="10">
+                <Border Background="#2D2D30" CornerRadius="12" Padding="10">
+                    <StackPanel>
+                        <DockPanel>
+                            <TextBlock Text="⚠️ Alertas" FontSize="16" FontWeight="Bold"/>
+                            <Button Content="Limpar" DockPanel.Dock="Right" Click="LimparAlertas_Click" Width="80" Height="26" Margin="5 0 0 0"/>
+                        </DockPanel>
+                        <ListBox x:Name="AlertList" Background="Transparent" BorderThickness="0" Margin="0 10 0 0" Height="200"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="#2D2D30" CornerRadius="12" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="Atualização automática" FontSize="16" FontWeight="Bold" Margin="0 0 0 6"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <CheckBox x:Name="AutoRefreshCheckBox" Content="Ativar" Checked="AutoRefreshCheckBox_Checked" Unchecked="AutoRefreshCheckBox_Unchecked"/>
+                            <ComboBox x:Name="AutoRefreshInterval" Width="150" SelectionChanged="AutoRefreshInterval_SelectionChanged">
+                                <ComboBoxItem Content="30 segundos" Tag="00:00:30"/>
+                                <ComboBoxItem Content="1 minuto" Tag="00:01:00"/>
+                                <ComboBoxItem Content="5 minutos" Tag="00:05:00"/>
+                                <ComboBoxItem Content="10 minutos" Tag="00:10:00"/>
+                            </ComboBox>
                         </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+                    </StackPanel>
+                </Border>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 10 0 0">
-            <Button Content="🔄 Atualizar" Click="Atualizar_Click" Width="120" Height="35" Background="#007ACC" Foreground="White"/>
-            <Button Content="➕ Configurar Itens" Click="OpenConfig_Click" Width="160" Height="35" Background="#4CAF50" Foreground="White"/>
-            <Button Content="❌ Remover Selecionado" Click="RemoverItem_Click" Width="180" Height="35" Background="#D32F2F" Foreground="White"/>
-            <Button Content="📊 Gráfico Zen" Click="AbrirGraficoZen_Click" Width="140" Height="35" Background="#FF9800" Foreground="White"/>
+                <Border Background="#2D2D30" CornerRadius="12" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="Histórico" FontSize="16" FontWeight="Bold" Margin="0 0 0 6"/>
+                        <Button Content="Abrir gráfico de itens" Click="AbrirGraficoItens_Click" Margin="0 5 0 0"/>
+                        <Button Content="Gráfico de preços (Personal Shop)" Click="AbrirGraficoPersonalShop_Click" Margin="0 5 0 0"/>
+                        <Button Content="Ver gráfico de Zen" Click="AbrirGraficoZen_Click" Margin="0 5 0 0"/>
+                        <Button Content="Exportar relatório CSV" Click="ExportarCsv_Click" Margin="0 5 0 0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 10 0 0" Spacing="10">
+            <Button Content="🔄 Atualizar agora" Click="Atualizar_Click" Width="150" Height="38" Background="#007ACC" Foreground="White"/>
+            <Button Content="➕ Configurar Itens" Click="OpenConfig_Click" Width="170" Height="38" Background="#4CAF50" Foreground="White"/>
+            <Button Content="❌ Remover Selecionado" Click="RemoverItem_Click" Width="190" Height="38" Background="#D32F2F" Foreground="White"/>
         </StackPanel>
     </Grid>
 </Window>

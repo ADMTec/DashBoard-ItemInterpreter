@@ -1,412 +1,236 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Threading;
 using ItemInterpreter.Data;
+using ItemInterpreter.Loaders;
+using ItemInterpreter.Logic;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
-using ItemInterpreter.Data;
-using ItemInterpreter.Loaders;
-
 
 namespace ItemInterpreter.UI.Charts
 {
     public partial class ItemCountChart : Window
     {
-        private readonly DispatcherTimer _graficoTimer = new DispatcherTimer();
-
-        private List<ItemDefinition> _itemDefinitions = new();
-
         private enum Periodo
         {
             Ultimos7Dias,
             Ultimos30Dias,
             Ultimos12Meses,
-            Ultimos5Anos
+            Completo
         }
 
         private enum Origem
         {
-            Warehouse,
-            Inventory,
+            Inventario,
+            Armazem,
             Ambos
         }
 
-        private enum TipoGrafico
+        private class ItemOption
         {
-            ItensPorPeriodo,
-            ZenTotal
+            public int Section { get; set; }
+            public int Index { get; set; }
+            public string DisplayName { get; set; } = string.Empty;
         }
 
-        public PlotModel PlotModel { get; private set; } = new PlotModel();
-
-        private Dictionary<string, LineSeries> _seriesPorItem = new();
+        private readonly ItemHistoryService _historyService = new();
+        private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+        private readonly List<ItemDefinition> _definitions = ItemXmlLoader.Load("IGC_ItemList.xml");
+        private List<ItemOption> _trackedItemOptions = new();
+        private bool _isInitialized;
 
         public ItemCountChart()
         {
             InitializeComponent();
-            DataContext = this;
+            Loaded += ItemCountChart_Loaded;
+            _refreshTimer.Tick += RefreshTimer_Tick;
+            Closed += (s, e) => _refreshTimer.Stop();
+        }
 
+        private void ItemCountChart_Loaded(object sender, RoutedEventArgs e)
+        {
             PeriodoComboBox.ItemsSource = Enum.GetValues(typeof(Periodo));
             OrigemComboBox.ItemsSource = Enum.GetValues(typeof(Origem));
             PeriodoComboBox.SelectedIndex = 0;
             OrigemComboBox.SelectedIndex = 2;
-            _graficoTimer.Interval = TimeSpan.FromSeconds(30); // ou menos, se desejar
-            _graficoTimer.Tick += (s, e) =>
+
+            LoadTrackedItems();
+            UpdateChart();
+
+            _isInitialized = true;
+            _refreshTimer.Start();
+        }
+
+        private void RefreshTimer_Tick(object? sender, EventArgs e)
+        {
+            LoadTrackedItems();
+            UpdateChart();
+        }
+
+        private void LoadTrackedItems()
+        {
+            try
             {
-                if (PeriodoComboBox.SelectedItem is Periodo periodo &&
-                    OrigemComboBox.SelectedItem is Origem origem)
+                if (!File.Exists("tracked_items.json"))
                 {
-                    LoadChart(periodo, origem);
+                    _trackedItemOptions = new List<ItemOption>();
                 }
-            };
-            _graficoTimer.Start();
-            _itemDefinitions = ItemXmlLoader.Load("IGC_ItemList.xml");
-            CarregarItemSelector();
-        }
-
-        private void PeriodoComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (PeriodoComboBox.SelectedIndex >= 0 && OrigemComboBox.SelectedIndex >= 0)
-            {
-                CarregarItemSelector(); // ✅ Recarrega o selector
-                LoadChart((Periodo)PeriodoComboBox.SelectedItem, (Origem)OrigemComboBox.SelectedItem);
-            }
-        }
-
-        private void OrigemComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (PeriodoComboBox.SelectedIndex >= 0 && OrigemComboBox.SelectedIndex >= 0)
-            {
-                CarregarItemSelector(); // ✅ Recarrega o selector
-                LoadChart((Periodo)PeriodoComboBox.SelectedItem, (Origem)OrigemComboBox.SelectedItem);
-            }
-        }
-
-        
-        private void CarregarItemSelector()
-        {
-            if (!File.Exists("tracked_history.json")) return;
-
-            var historico = JsonSerializer.Deserialize<List<ItemTrackingLog>>(File.ReadAllText("tracked_history.json")) ?? new();
-            var opcoes = historico
-                .GroupBy(h => new { h.Section, h.Index })
-                .Select(g => new ItemOption
+                else
                 {
-                    Section = g.Key.Section,
-                    Index = g.Key.Index,
-                    ItemName = g.FirstOrDefault()?.ItemName ?? $"ITEMGET({g.Key.Section},{g.Key.Index})"
-                })
-                .ToList();
-        }
-       
+                    var json = File.ReadAllText("tracked_items.json");
+                    var trackedItems = JsonSerializer.Deserialize<List<TrackedItem>>(json) ?? new List<TrackedItem>();
 
-        private void LoadSingleItemChart(int section, int index)
-        {
-            var model = new PlotModel { Title = $"Rastreamento: Sec {section}, Idx {index}" };
-            var historico = JsonSerializer.Deserialize<List<ItemTrackingLog>>(File.ReadAllText("tracked_history.json")) ?? new();
-            var categoryAxis = new CategoryAxis { Position = AxisPosition.Bottom, Title = "Data" };
-            var valueAxis = new LinearAxis { Position = AxisPosition.Left, Title = "Quantidade" };
-
-            var registros = historico
-                .Where(h => h.Section == section && h.Index == index)
-                .OrderBy(h => h.Date)
-                .ToList();
-
-            var warehouseSeries = new LineSeries { Title = "Warehouse", MarkerType = MarkerType.Square };
-            var inventorySeries = new LineSeries { Title = "Inventory", MarkerType = MarkerType.Circle };
-
-            for (int i = 0; i < registros.Count; i++)
-            {
-                categoryAxis.Labels.Add(registros[i].Date.ToString("dd/MM"));
-                warehouseSeries.Points.Add(new DataPoint(i, registros[i].Warehouse));
-                inventorySeries.Points.Add(new DataPoint(i, registros[i].Inventory));
-            }
-
-            model.Series.Add(warehouseSeries);
-            model.Series.Add(inventorySeries);
-            model.Axes.Add(categoryAxis);
-            model.Axes.Add(valueAxis);
-
-            PlotModel = model;
-            ItemChart.Model = PlotModel;
-        }
-
-        private void LoadChart(Periodo periodo, Origem origem)
-        {
-            var model = new PlotModel { Title = "Quantidade de Itens por Período" };
-            model.IsLegendVisible = true;
-
-            var categoryAxis = new CategoryAxis { Position = AxisPosition.Bottom, Title = "Data" };
-            var valueAxis = new LinearAxis { Position = AxisPosition.Left, Title = "Quantidade" };
-
-            var dadosPorItem = ObterDadosReaisPorItem(periodo, origem);
-            var cores = OxyPalettes.HueDistinct(dadosPorItem.Count).Colors;
-
-            int corIndex = 0;
-
-            _seriesPorItem.Clear();
-            /*LegendaCheckList.ItemsSource = dadosPorItem.Keys.ToList();*/
-
-            foreach (var (itemName, dados) in dadosPorItem)
-            {
-                var series = new LineSeries
-                {
-                    Title = itemName,
-                    MarkerType = MarkerType.Circle,
-                    MarkerSize = 3,
-                    MarkerStroke = OxyColors.Black,
-                    StrokeThickness = 2,
-                    Color = cores[corIndex % cores.Count]
-                };
-
-                for (int i = 0; i < dados.Count; i++)
-                {
-                    var (label, quantidade) = dados[i];
-                    series.Points.Add(new DataPoint(i, quantidade));
-
-                    if (categoryAxis.Labels.Count <= i)
-                        categoryAxis.Labels.Add(label);
+                    _trackedItemOptions = trackedItems
+                        .Select(item =>
+                        {
+                            var definition = _definitions.FirstOrDefault(d => d.Section == item.Section && d.Index == item.Index);
+                            var name = definition?.Name ?? item.ItemName ?? $"ITEMGET({item.Section},{item.Index})";
+                            return new ItemOption
+                            {
+                                Section = item.Section,
+                                Index = item.Index,
+                                DisplayName = $"{name} (Sec {item.Section}, Idx {item.Index})"
+                            };
+                        })
+                        .OrderBy(o => o.DisplayName)
+                        .ToList();
                 }
 
-                _seriesPorItem[itemName] = series;
-                model.Series.Add(series);
-                corIndex++;
+                ItemSelector.ItemsSource = _trackedItemOptions;
+                ItemSelector.DisplayMemberPath = nameof(ItemOption.DisplayName);
             }
-
-
-            model.Axes.Add(categoryAxis);
-            model.Axes.Add(valueAxis);
-
-            PlotModel = model;
-            ItemChart.Model = PlotModel;
-            // Reaplica visibilidade conforme checkboxes
-            Legenda_Checked(null, null);
-
-        }
-
-        public class ItemTrackingLog
-        {
-            public string ItemName { get; set; } = string.Empty;
-            public int Section { get; set; }
-            public int Index { get; set; }
-            public DateTime Date { get; set; }
-            public int Warehouse { get; set; }
-            public int Inventory { get; set; }
-            public int ZenAmount { get; set; }
-        }
-
-        public class ItemOption
-        {
-            public int Section { get; set; }
-            public int Index { get; set; }
-            public string DisplayName => $"{ItemName} (Sec: {Section}, Idx: {Index})";
-            public string ItemName { get; set; } = string.Empty;
-        }
-
-        private Dictionary<string, List<(string Label, int Quantidade)>> ObterDadosReaisPorItem(Periodo periodo, Origem origem)
-        {
-            var resultados = new Dictionary<string, List<(string Label, int Quantidade)>>();
-            var trackedItems = JsonSerializer.Deserialize<List<TrackedItem>>(File.ReadAllText("tracked_items.json")) ?? new();
-
-            var historicoPath = "tracked_history.json";
-            if (!File.Exists(historicoPath))
-                return resultados;
-
-            var historico = JsonSerializer.Deserialize<List<ItemTrackingLog>>(File.ReadAllText(historicoPath)) ?? new();
-
-            DateTime cutoffDate = periodo switch
+            catch
             {
-                Periodo.Ultimos7Dias => DateTime.Today.AddDays(-7),
-                Periodo.Ultimos30Dias => DateTime.Today.AddDays(-30),
-                Periodo.Ultimos12Meses => DateTime.Today.AddMonths(-12),
-                Periodo.Ultimos5Anos => DateTime.Today.AddYears(-5),
-                _ => DateTime.Today.AddDays(-7)
-            };
-
-            foreach (var item in trackedItems)
-            {
-                // Procurar nome do item a partir do XML
-                var def = _itemDefinitions.FirstOrDefault(d => d.Section == item.Section && d.Index == item.Index);
-                item.ItemName = def != null ? def.Name : $"ITEMGET({item.Section},{item.Index})";
-
-                string key = $"{item.ItemName} (Sec:{item.Section}, Idx:{item.Index})";
-
-                var registrosFiltrados = historico
-                    .Where(h => h.Section == item.Section && h.Index == item.Index && h.Date >= cutoffDate)
-                    .GroupBy(h => h.Date.ToString("yyyy-MM-dd"))
-                    .Select(g => (g.Key, Warehouse: g.Sum(x => x.Warehouse), Inventory: g.Sum(x => x.Inventory)))
-                    .OrderBy(x => x.Key);
-
-                var pontos = new List<(string Label, int Quantidade)>();
-
-                foreach (var r in registrosFiltrados)
-                {
-                    int quantidade = origem switch
-                    {
-                        Origem.Warehouse => r.Warehouse,
-                        Origem.Inventory => r.Inventory,
-                        Origem.Ambos => r.Warehouse + r.Inventory,
-                        _ => 0
-                    };
-
-                    pontos.Add((r.Key, quantidade));
-                }
-
-                resultados[key] = pontos.Count > 0
-                    ? pontos
-                    : new List<(string Label, int Quantidade)> { ("Sem dados", 0) };
-
+                _trackedItemOptions = new List<ItemOption>();
             }
-
-            return resultados;
         }
 
-        private void LoadZenChart(Periodo periodo)
+        private void Filtro_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!_isInitialized)
+                return;
+
+            UpdateChart();
+        }
+
+        private void UpdateChart()
         {
             var model = new PlotModel
-            { Title = "Zen Total em Circulação por Período", 
+            {
+                Title = "Histórico de estoque",
                 Background = OxyColors.Black,
                 TextColor = OxyColors.White,
                 PlotAreaBorderColor = OxyColors.Gray
             };
-            var categoryAxis = new CategoryAxis { Position = AxisPosition.Bottom, Title = "Data" };
-            var valueAxis = new LinearAxis { Position = AxisPosition.Left, Title = "Zen em Circulação" };
 
-            var historico = JsonSerializer.Deserialize<List<ItemTrackingLog>>(File.ReadAllText("tracked_history.json")) ?? new();
-
-            DateTime cutoffDate = periodo switch
+            var dateAxis = new DateTimeAxis
             {
-                Periodo.Ultimos7Dias => DateTime.Today.AddDays(-7),
-                Periodo.Ultimos30Dias => DateTime.Today.AddDays(-30),
-                Periodo.Ultimos12Meses => DateTime.Today.AddMonths(-12),
-                Periodo.Ultimos5Anos => DateTime.Today.AddYears(-5),
-                _ => DateTime.Today.AddDays(-7)
+                Position = AxisPosition.Bottom,
+                StringFormat = "dd/MM",
+                MajorGridlineStyle = LineStyle.Dash,
+                MinorGridlineStyle = LineStyle.Dot,
+                IntervalLength = 80
             };
 
-            var agrupado = historico
-                .Where(h => h.Date >= cutoffDate)
-                .GroupBy(h => h.Date.ToString("yyyy-MM-dd"))
-                .Select(g => new { Data = g.Key, TotalZen = g.Sum(x => x.ZenAmount) })
-                .OrderBy(g => g.Data)
-                .ToList();
-
-            var series = new LineSeries
+            var valueAxis = new LinearAxis
             {
-                Title = "Zen Total",
-                MarkerType = MarkerType.Circle,
-                MarkerSize = 3,
-                MarkerStroke = OxyColors.Black,
-                StrokeThickness = 2,
-                Color = OxyColors.Gold
+                Position = AxisPosition.Left,
+                Title = "Quantidade",
+                MajorGridlineStyle = LineStyle.Dash,
+                MinorGridlineStyle = LineStyle.Dot
             };
 
-            for (int i = 0; i < agrupado.Count; i++)
-            {
-                series.Points.Add(new DataPoint(i, agrupado[i].TotalZen));
-                categoryAxis.Labels.Add(agrupado[i].Data);
-            }
-
-            model.Series.Add(series);
-            model.Axes.Add(categoryAxis);
+            model.Axes.Add(dateAxis);
             model.Axes.Add(valueAxis);
 
-            PlotModel = model;
-            ItemChart.Model = PlotModel;
-        }
-        private void Legenda_Checked(object sender, RoutedEventArgs e)
-        {
-            if (PlotModel == null || _seriesPorItem.Count == 0) return;
-
-            var selecionados = new List<string>();
-
-            /*foreach (var item in LegendaCheckList.Items)
+            var history = _historyService.ReadHistory();
+            if (history.Count == 0)
             {
-                var container = LegendaCheckList.ItemContainerGenerator.ContainerFromItem(item) as ListBoxItem;
-                if (container != null)
-                {
-                    var checkbox = FindVisualChild<CheckBox>(container);
-                    if (checkbox?.IsChecked == true)
-                    {
-                        selecionados.Add(item.ToString());
-                    }
-                }
-            }*/
+                ItemChart.Model = model;
+                return;
+            }
 
-            PlotModel.Series.Clear();
+            var periodo = (Periodo)(PeriodoComboBox.SelectedItem ?? Periodo.Ultimos7Dias);
+            var origem = (Origem)(OrigemComboBox.SelectedItem ?? Origem.Ambos);
+            var cutoff = GetCutoffDate(periodo);
+            var selectedItems = GetSelectedItems();
 
-            foreach (var nome in selecionados)
+            if (!selectedItems.Any())
             {
-                if (_seriesPorItem.TryGetValue(nome, out var serieOriginal))
+                selectedItems = _trackedItemOptions;
+            }
+
+            var palette = OxyPalettes.HueDistinct(selectedItems.Count);
+            var paletteColors = palette.Colors;
+
+            for (int i = 0; i < selectedItems.Count; i++)
+            {
+                var option = selectedItems[i];
+                var points = history
+                    .Where(h => h.Section == option.Section && h.Index == option.Index && h.Timestamp >= cutoff)
+                    .OrderBy(h => h.Timestamp)
+                    .ToList();
+
+                if (points.Count == 0)
+                    continue;
+
+                var series = new LineSeries
                 {
-                    var novaSerie = new LineSeries
+                    Title = option.DisplayName,
+                    StrokeThickness = 2,
+                    MarkerType = MarkerType.Circle,
+                    MarkerSize = 3,
+                    Color = paletteColors[i % paletteColors.Count],
+                    MarkerStroke = OxyColors.White
+                };
+
+                foreach (var snapshot in points)
+                {
+                    double value = origem switch
                     {
-                        Title = serieOriginal.Title,
-                        MarkerType = serieOriginal.MarkerType,
-                        MarkerSize = serieOriginal.MarkerSize,
-                        MarkerStroke = serieOriginal.MarkerStroke,
-                        StrokeThickness = serieOriginal.StrokeThickness,
-                        Color = serieOriginal.Color
+                        Origem.Inventario => snapshot.InventoryCount,
+                        Origem.Armazem => snapshot.WarehouseCount,
+                        _ => snapshot.InventoryCount + snapshot.WarehouseCount
                     };
 
-                    foreach (var ponto in serieOriginal.Points)
-                    {
-                        novaSerie.Points.Add(new DataPoint(ponto.X, ponto.Y));
-                    }
-
-                    PlotModel.Series.Add(novaSerie);
+                    series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(snapshot.Timestamp), value));
                 }
 
+                model.Series.Add(series);
             }
 
-            PlotModel.InvalidatePlot(true);
-        }
-        private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            if (!model.Series.Any())
             {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T tChild)
-                    return tChild;
-
-                var result = FindVisualChild<T>(child);
-                if (result != null)
-                    return result;
-            }
-            return null;
-        }
-        private void SelecionarTodos_Click(object sender, RoutedEventArgs e)
-        {
-            /*foreach (var item in LegendaCheckList.Items)
-            {
-                if (LegendaCheckList.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem container)
+                model.Series.Add(new LineSeries
                 {
-                    var checkbox = FindVisualChild<CheckBox>(container);
-                    if (checkbox != null)
-                        checkbox.IsChecked = true;
-                }
-            }*/
+                    Title = "Sem dados",
+                    Points = { new DataPoint(DateTimeAxis.ToDouble(DateTime.Now), 0) }
+                });
+            }
+
+            ItemChart.Model = model;
         }
 
-        /*private void DesmarcarTodos_Click(object sender, RoutedEventArgs e)
+        private static DateTime GetCutoffDate(Periodo periodo)
         {
-            foreach (var item in LegendaCheckList.Items)
+            return periodo switch
             {
-                if (LegendaCheckList.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem container)
-                {
-                    var checkbox = FindVisualChild<CheckBox>(container);
-                    if (checkbox != null)
-                        checkbox.IsChecked = false;
-                }
-            }
-        }*/
+                Periodo.Ultimos7Dias => DateTime.Now.AddDays(-7),
+                Periodo.Ultimos30Dias => DateTime.Now.AddDays(-30),
+                Periodo.Ultimos12Meses => DateTime.Now.AddMonths(-12),
+                _ => DateTime.MinValue
+            };
+        }
 
-
+        private List<ItemOption> GetSelectedItems()
+        {
+            return ItemSelector.SelectedItems.Cast<ItemOption>().ToList();
+        }
     }
 }

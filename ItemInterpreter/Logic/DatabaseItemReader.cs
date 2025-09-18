@@ -37,7 +37,7 @@ namespace ItemInterpreter.Logic
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
 
-            var cmd = new SqlCommand("SELECT Inventory FROM Character", conn);
+            var cmd = new SqlCommand("SELECT [Inventory] FROM [dbo].[Character]", conn);
             using var reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -64,7 +64,7 @@ namespace ItemInterpreter.Logic
             using var conn = new SqlConnection(_connectionString);
             conn.Open();
 
-            var cmd = new SqlCommand("SELECT Items FROM warehouse", conn);
+            var cmd = new SqlCommand("SELECT [Items] FROM [dbo].[warehouse]", conn);
             using var reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -89,7 +89,7 @@ namespace ItemInterpreter.Logic
             using var connection = new SqlConnection(_connectionString);
             connection.Open();
 
-            var command = new SqlCommand("SELECT SUM(Money) FROM Inventory", connection);
+            var command = new SqlCommand("SELECT SUM(CAST([Money] AS BIGINT)) FROM [dbo].[Character]", connection);
             var result = command.ExecuteScalar();
             return result != DBNull.Value ? Convert.ToInt64(result) : 0;
         }
@@ -99,7 +99,7 @@ namespace ItemInterpreter.Logic
             using var connection = new SqlConnection(_connectionString);
             connection.Open();
 
-            var command = new SqlCommand("SELECT SUM(Money) FROM Warehouse", connection);
+            var command = new SqlCommand("SELECT SUM(CAST([Money] AS BIGINT)) FROM [dbo].[warehouse]", connection);
             var result = command.ExecuteScalar();
             return result != DBNull.Value ? Convert.ToInt64(result) : 0;
         }
