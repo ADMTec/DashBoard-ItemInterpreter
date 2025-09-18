@@ -46,7 +46,9 @@ namespace ItemInterpreter.UI.Charts
             InitializeComponent();
 
             _connectionString = connectionString ?? "Data Source=localhost;Initial Catalog=MuOnline;Integrated Security=True;TrustServerCertificate=True;";
+
             _priceHistoryService = new PersonalShopPriceHistoryService(_connectionString, itemDefinitions: _definitions);
+
             _trackedItems = trackedItems?.Select(CloneTrackedItem).ToList() ?? LoadTrackedItemsFromFile();
 
             Loaded += PersonalShopPriceChart_Loaded;

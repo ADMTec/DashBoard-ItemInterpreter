@@ -12,7 +12,9 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+
         <StackPanel Grid.Row="0" Orientation="Vertical" Margin="0 0 0 10" Spacing="10">
+
             <TextBlock Text="📊 Painel de Controle do Mercado" FontSize="24" FontWeight="Bold"/>
             <TextBlock x:Name="LastUpdatedText" FontSize="12" Foreground="#AAAAAA" Margin="0 4 0 12"/>
 
@@ -42,6 +44,7 @@
                 </StackPanel>
             </Border>
             </UniformGrid>
+
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -118,6 +121,7 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0 0 0 10" ColumnDefinitions="3*,2*" ColumnSpacing="15">
@@ -214,6 +218,7 @@
 
                 <Border Background="#2D2D30" CornerRadius="12" Padding="10">
                     <StackPanel>
+
                         <DockPanel>
                             <TextBlock Text="⚠️ Alertas" FontSize="16" FontWeight="Bold"/>
                             <Button Content="Limpar" DockPanel.Dock="Right" Click="LimparAlertas_Click" Width="80" Height="26" Margin="5 0 0 0"/>

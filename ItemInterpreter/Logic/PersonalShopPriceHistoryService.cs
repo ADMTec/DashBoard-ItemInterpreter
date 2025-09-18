@@ -5,7 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using ItemInterpreter.Data;
+
 using ItemInterpreter.Loaders;
+
 using Microsoft.Data.SqlClient;
 
 namespace ItemInterpreter.Logic
@@ -15,6 +17,7 @@ namespace ItemInterpreter.Logic
         private readonly string _connectionString;
         private readonly string _historyPath;
         private readonly int _maxEntriesPerItem;
+
         private readonly Dictionary<(int Section, int Index), string> _itemNames;
 
         public PersonalShopPriceHistoryService(
@@ -22,6 +25,7 @@ namespace ItemInterpreter.Logic
             string? historyPath = null,
             int maxEntriesPerItem = 365,
             IEnumerable<ItemDefinition>? itemDefinitions = null)
+
         {
             _connectionString = connectionString;
             _historyPath = historyPath ?? "personalshop_price_history.json";
@@ -31,6 +35,7 @@ namespace ItemInterpreter.Logic
             _itemNames = definitions
                 .GroupBy(d => (d.Section, d.Index))
                 .ToDictionary(group => group.Key, group => group.First().Name);
+
         }
 
         public List<PersonalShopAveragePriceEntry> ReadHistory()

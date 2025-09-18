@@ -36,11 +36,13 @@ namespace ItemInterpreter.UI.Dashboard
             public InventoryStatus Status { get; set; }
             public Brush StatusBrush { get; set; } = Brushes.Gray;
             public string StatusMessage { get; set; } = string.Empty;
+
             public double? AverageDailyChange { get; set; }
             public double? DaysToMinimum { get; set; }
             public double? DaysToMaximum { get; set; }
             public string ProjectionMessage { get; set; } = "Histórico insuficiente";
             public Brush ProjectionBrush { get; set; } = Brushes.Gray;
+
 
             public int TotalCount => InventoryCount + WarehouseCount;
             public string MinimumTargetDisplay => MinimumTarget?.ToString() ?? "—";
@@ -111,6 +113,7 @@ namespace ItemInterpreter.UI.Dashboard
         private readonly ObservableCollection<RecentSaleDisplay> _recentSales = new();
         private readonly ObservableCollection<HotItemDisplay> _topVolume = new();
         private readonly ObservableCollection<HotItemDisplay> _priceVariations = new();
+
         private readonly HashSet<string> _alertRegistry = new();
 
         private List<ItemDefinition> _itemDatabase = ItemXmlLoader.Load("IGC_ItemList.xml");
@@ -128,6 +131,7 @@ namespace ItemInterpreter.UI.Dashboard
             RecentSalesListView.ItemsSource = _recentSales;
             TopVolumeListView.ItemsSource = _topVolume;
             PriceVariationListView.ItemsSource = _priceVariations;
+            
             AutoRefreshInterval.SelectedIndex = 2; // 5 minutos
             AutoRefreshCheckBox.IsChecked = true;
 
@@ -172,6 +176,7 @@ namespace ItemInterpreter.UI.Dashboard
             var newAlerts = new List<string>();
             var trackedKeys = new List<(int Section, int Index)>();
 
+
             decimal totalCost = 0m;
             decimal totalPotentialRevenue = 0m;
             int totalStock = 0;
@@ -189,6 +194,7 @@ namespace ItemInterpreter.UI.Dashboard
                 Brush statusBrush = new SolidColorBrush(Color.FromRgb(102, 187, 106));
 
                 if (pair.MinimumTarget.HasValue && total < pair.MinimumTarget.Value)
+
                 {
                     status = InventoryStatus.BelowMinimum;
                     statusMessage = "Abaixo da meta";
@@ -196,6 +202,7 @@ namespace ItemInterpreter.UI.Dashboard
                 }
                 else if (pair.MaximumTarget.HasValue && total > pair.MaximumTarget.Value)
                 {
+
                     status = InventoryStatus.AboveMaximum;
                     statusMessage = "Acima do limite";
                     statusBrush = new SolidColorBrush(Color.FromRgb(255, 183, 77));

@@ -108,5 +108,6 @@ namespace ItemInterpreter.Logic
 
             return deltas.Count > 0 ? deltas.Average() : null;
         }
+
     }
 }
